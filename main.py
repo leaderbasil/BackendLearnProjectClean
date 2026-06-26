@@ -1,11 +1,3 @@
-# main.py
-import logging
-# ===== قتل SQLAlchemy فوراً =====
-logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
-logging.getLogger("sqlalchemy.engine").setLevel(logging.ERROR)
-logging.getLogger("sqlalchemy.pool").setLevel(logging.ERROR)
-logging.getLogger("sqlalchemy.orm").setLevel(logging.ERROR)
-
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -16,9 +8,6 @@ from modules.auth import router as auth_router
 from core.database import engine, Base
 from modules.blog.router import router as blog_router
 from core.logging_config import logger
-
-# ===== عداد الطلبات =====
-request_counter = 0
 
 # ===== حدث بدء وإيقاف التطبيق =====
 @asynccontextmanager
@@ -35,31 +24,25 @@ app = FastAPI(title="Blog API", lifespan=lifespan)
 # ===== Middleware لتسجيل الطلبات =====
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    global request_counter
-    request_counter += 1
-
     start_time = time.time()
     response = await call_next(request)
     process_time = time.time() - start_time
 
-    # تسجيل الطلب مع البيانات المطلوبة
+    # ✅ سيستخدم شكل الطلبات تلقائياً لأننا مررنا method
     logger.bind(
         method=request.method,
+        path=request.url.path,
         status=response.status_code,
-        duration=f"{process_time:.4f}s"
-    ).info(request.url.path)
-
-    # إضافة فاصل بعد كل طلب (باستثناء الأول)
-    if request_counter > 1:
-        # الفاصل = 60 علامة "="
-        logger.bind(method="", status="", duration="").info("=" * 60)
+        duration=f"{process_time:.3f}s"
+    ).info("")
 
     return response
 
 # ===== معالجات الأخطاء =====
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.warning(f"⚠️ Validation error on {request.url.path}")
+    # ✅ سيستخدم الشكل العادي لأننا لم نمرر method
+    logger.error(f"⚠️ Validation error on {request.url.path}")
     errors = []
     for error in exc.errors():
         err = {k: str(v) if isinstance(v, bytes) else v for k, v in error.items()}
