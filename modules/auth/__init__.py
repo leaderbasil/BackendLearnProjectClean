@@ -1,0 +1,1 @@
+from .router.auth_router import router
