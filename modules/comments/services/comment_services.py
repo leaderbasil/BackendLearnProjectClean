@@ -1,4 +1,4 @@
-from fastapi import HTTPException, status
+from core.exception import NotFoundException, PermissionDeniedException
 from repositories.comment_repository import CommentRepository
 from modules.comments.schemas import CommentCreate, CommentUpdate
 from models.user import User
@@ -19,7 +19,7 @@ class CommentService:
     async def get_comment(self, comment_id: int):
         comment = await self.repo.get_by_id(comment_id)
         if not comment:
-            raise HTTPException(status_code=404, detail="Comment not found")
+            raise NotFoundException("Comment")
         return comment
 
     async def create_comment(self, data: CommentCreate, current_user: User):
@@ -28,11 +28,11 @@ class CommentService:
     async def update_comment(self, comment_id: int, data: CommentUpdate, current_user: User):
         comment = await self.get_comment(comment_id)
         if comment.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not enough permissions")
+            raise PermissionDeniedException("Not enough permissions to update this comment")
         return await self.repo.update(comment, data.content)
 
     async def delete_comment(self, comment_id: int, current_user: User):
         comment = await self.get_comment(comment_id)
         if comment.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not enough permissions")
+            raise PermissionDeniedException("Not enough permissions to delete this comment")
         await self.repo.delete(comment)

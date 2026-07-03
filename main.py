@@ -1,14 +1,14 @@
+# main.py
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 import time
-
-from modules.auth import router as auth_router
+from core.api import api_router
 from core.database import engine, Base
-from modules.blog.router import router as blog_router
-from modules.comments.router import router as comments_router
 from core.logging_config import logger
+from core.exception import AppException
+
 # ===== حدث بدء وإيقاف التطبيق =====
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,21 +27,32 @@ async def log_requests(request: Request, call_next):
     start_time = time.time()
     response = await call_next(request)
     process_time = time.time() - start_time
-
-    # ✅ سيستخدم شكل الطلبات تلقائياً لأننا مررنا method
     logger.bind(
         method=request.method,
         path=request.url.path,
         status=response.status_code,
         duration=f"{process_time:.3f}s"
     ).info("")
-
     return response
 
-# ===== معالجات الأخطاء =====
+# ===== 🔥 معالج الأخطاء المركزي (يستمع لاستثناءات AppException) =====
+@app.exception_handler(AppException)
+async def app_exception_handler(request: Request, exc: AppException):
+    logger.warning(f"AppException: {exc.error_code} - {exc.message}")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": {
+                "code": exc.error_code,
+                "message": exc.message,
+                "details": exc.details,
+            }
+        }
+    )
+
+# ===== معالجات الأخطاء الأخرى =====
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    # ✅ سيستخدم الشكل العادي لأننا لم نمرر method
     logger.error(f"⚠️ Validation error on {request.url.path}")
     errors = []
     for error in exc.errors():
@@ -60,12 +71,8 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Internal server error"}
     )
 
-# ===== نقاط النهاية =====
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
 
-# ===== تسجيل الراوترات =====
-app.include_router(auth_router)
-app.include_router(blog_router)
-app.include_router(comments_router)
+app.include_router(api_router)

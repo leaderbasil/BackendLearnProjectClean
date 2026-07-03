@@ -1,3 +1,5 @@
+from typing import Any, Sequence
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from models.comment import Comment
@@ -10,7 +12,7 @@ class CommentRepository:
         result = await self.db.execute(select(Comment).where(Comment.id == comment_id))
         return result.scalar_one_or_none()
 
-    async def get_by_post_id(self, post_id: int, page: int, size: int) -> tuple[list[Comment], int]:
+    async def get_by_post_id(self, post_id: int, page: int, size: int) -> tuple[Sequence[Any], Any | None]:
         total = await self.db.scalar(select(func.count(Comment.id)).where(Comment.post_id == post_id))
         items = await self.db.execute(
             select(Comment)

@@ -15,7 +15,6 @@ class ImageKitUploader:
     async def upload(self, file: UploadFile, folder: str = "/blogs") -> str:
         try:
             file_content = await file.read()
-            
             auth_header = base64.b64encode(
                 f"{self.private_key}:".encode()
             ).decode()
@@ -25,7 +24,7 @@ class ImageKitUploader:
                 headers={"Authorization": f"Basic {auth_header}"},
                 files={"file": (file.filename, file_content)},
                 data={
-                    "fileName": file.filename,  # ✅ أضف هذا السطر
+                    "fileName": file.filename,
                     "folder": folder,
                     "useUniqueFileName": "true",
                 }
