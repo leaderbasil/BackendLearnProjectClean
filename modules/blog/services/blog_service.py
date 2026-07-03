@@ -2,7 +2,7 @@ from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.exc import SQLAlchemyError
 from core.imagekit_upload import imagekit_uploader 
 from repositories.blog_repository import BlogRepository
-from models.blog import User
+from models import User
 from typing import Optional
 import logging
 

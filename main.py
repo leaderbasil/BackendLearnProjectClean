@@ -7,8 +7,8 @@ import time
 from modules.auth import router as auth_router
 from core.database import engine, Base
 from modules.blog.router import router as blog_router
+from modules.comments.router import router as comments_router
 from core.logging_config import logger
-
 # ===== حدث بدء وإيقاف التطبيق =====
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -68,3 +68,4 @@ async def root():
 # ===== تسجيل الراوترات =====
 app.include_router(auth_router)
 app.include_router(blog_router)
+app.include_router(comments_router)

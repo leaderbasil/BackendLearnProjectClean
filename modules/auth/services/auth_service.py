@@ -25,3 +25,40 @@ class AuthService:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         token = create_access_token(str(user.id))
         return Token(access_token=token)
+
+    async def change_password(self, user_id: int, data: ChangePassword) -> bool:
+        user = await self.user_repo.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        if not verify_password(data.current_password, user.hashed_password):
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+        
+        new_hashed = hash_password(data.new_password)
+        await self.user_repo.update_password(user_id, new_hashed)
+        return True
+
+    async def request_password_reset(self, data: ForgotPassword) -> str:
+        """إنشاء رمز إعادة تعيين وإرجاعه (بدلاً من إرسال بريد إلكتروني)"""
+        user = await self.user_repo.get_by_email(data.email)
+        if not user:
+            return "If this email exists, a reset token has been sent."
+        
+        await self.token_repo.delete_expired_reset_tokens(user.id)
+        token, expires_at = create_reset_token(user.id)
+        await self.token_repo.create_reset_token(user.id, token, expires_at)
+        
+        return f"Reset token for {user.email}: {token}"
+
+    async def reset_password(self, data: ResetPassword) -> bool:
+        token_record = await self.token_repo.get_reset_token(data.token)
+        if not token_record:
+            raise HTTPException(status_code=400, detail="Invalid or expired token")
+        
+        if token_record.expires_at < datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail="Token has expired")
+        
+        new_hashed = hash_password(data.new_password)
+        await self.user_repo.update_password(token_record.user_id, new_hashed)
+        await self.token_repo.delete_reset_token(data.token)
+        return True

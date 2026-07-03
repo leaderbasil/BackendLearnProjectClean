@@ -8,11 +8,10 @@ from jose import JWTError
 
 from .database import AsyncSessionLocal
 from .auth import decode_access_token
-from models.blog import User  
+from models.user import User  
 
 logger = logging.getLogger("blog_api")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
-# ========== التبعيات العامة ==========
 async def get_db():
     async with AsyncSessionLocal() as session:
         try:
@@ -44,11 +43,45 @@ async def get_current_user(
         raise credentials_exception
     return user
 
-# ========== تبعيات الـ Blog (مع استيراد متأخر) ==========
 def get_blog_repository(db: AsyncSession = Depends(get_db)):
-    from repositories.blog_repository import BlogRepository   # استيراد متأخر
+    from repositories.blog_repository import BlogRepository  
     return BlogRepository(db)
 
 def get_blog_service(repository=Depends(get_blog_repository)):
-    from modules.blog.services.blog_service import BlogService   # استيراد متأخر
+    from modules.blog.services.blog_service import BlogService   
     return BlogService(repository)
+    
+def get_user_repository(db: AsyncSession = Depends(get_db)):
+    from repositories.user_repository import UserRepository
+    return UserRepository(db)
+
+async def get_current_superuser(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """تتحقق من أن المستخدم الحالي هو مدير (Superuser)"""
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions. Admin access required."
+        )
+    return current_user
+
+async def get_current_verified_user(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """تتحقق من أن المستخدم قام بتأكيد بريده الإلكتروني"""
+    if not current_user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email not verified. Please verify your email first."
+        )
+    return current_user
+
+async def get_user_service(
+    user_repo = Depends(get_user_repository), 
+    db: AsyncSession = Depends(get_db)
+):
+    from repositories.token_repository import TokenRepository
+    from modules.auth.services.auth_service import AuthService 
+    token_repo = TokenRepository(db)
+    return AuthService(user_repo, token_repo)

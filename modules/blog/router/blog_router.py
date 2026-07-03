@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, Query, Response, status, Form, File, UploadFile
+
+from models import User
 from modules.blog.schemas import BlogOut, PaginatedBlogs, BlogCreate
-from models.blog import User
-from core.dependencies import get_blog_service, get_current_user  
+from core.dependencies import get_blog_service, get_current_user
 
 router = APIRouter(prefix="/blog", tags=["blog"])
 
